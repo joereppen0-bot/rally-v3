@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Rally — a mobile-first protest finder with map, AI cause summaries, and organiser submissions.",
+  "description": "Rally \u2014 a mobile-first protest finder with map, AI cause summaries, and organiser submissions.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,7 +13,8 @@
     "@supabase/supabase-js": "^2.45.4",
     "mapbox-gl": "^3.6.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "stripe": "^17.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

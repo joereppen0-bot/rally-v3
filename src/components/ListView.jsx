@@ -7,7 +7,7 @@ export default function ListView({ events, center, onSelect, onLocate }) {
   const { sp, fmtDate, fmtDistance } = useSettings()
   const withDist = events
     .map((e) => ({ ...e, _dist: distanceMiles(center, { lat: e.lat, lng: e.lng }) }))
-    .sort((a, b) => (a._dist ?? Infinity) - (b._dist ?? Infinity))
+    .sort((a, b) => (!!b.promoted - !!a.promoted) || ((b.promoted_amount || 0) - (a.promoted_amount || 0)) || ((a._dist ?? Infinity) - (b._dist ?? Infinity)))
 
   return (
     <div className="absolute inset-0 overflow-y-auto bg-ink-900 pt-16 pb-24">
@@ -28,6 +28,12 @@ export default function ListView({ events, center, onSelect, onLocate }) {
                         {sp(categoryLabel(e.cause_category))}
                       </span>
                       <span className="text-[11px] text-zinc-500">{e.country}</span>
+                      {e.promoted && (
+                        <span className="rounded-full bg-rally/20 px-2 py-0.5 text-[10px] font-bold text-rally">★ Promoted</span>
+                      )}
+                      {e._mine && !e.is_public && (
+                        <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">Private — only you</span>
+                      )}
                       {e.verified && (
                         <span className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-400">
                           <CheckIcon width={11} height={11} /> Verified

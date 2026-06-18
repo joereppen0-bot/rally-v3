@@ -39,3 +39,40 @@ export async function verifyEvent(event) {
     }
   }
 }
+
+// Screen a submission before paid promotion: must be real AND appropriate.
+export async function screenEvent(event) {
+  try {
+    const d = await callAI({ type: 'screen', event })
+    if (d.error) throw new Error(d.error)
+    return d
+  } catch {
+    return {
+      verdict: 'uncertain', appropriate: true,
+      reason: 'AI screening needs the server + ANTHROPIC_API_KEY. (Demo mode: treated as a preview pass.)',
+      sources: [], _demo: true,
+    }
+  }
+}
+
+// Create a Stripe Checkout session for promoting an event. Returns { url } or { error }.
+export async function startCheckout(eventId, amount) {
+  try {
+    const r = await fetch('/api/checkout', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ eventId, amount }),
+    })
+    return await r.json()
+  } catch (e) { return { error: 'network', detail: String(e) } }
+}
+
+// Verify a completed checkout server-side (promotes the event on success).
+export async function confirmCheckout(sessionId) {
+  try {
+    const r = await fetch('/api/confirm', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    })
+    return await r.json()
+  } catch (e) { return { error: 'network', detail: String(e) } }
+}

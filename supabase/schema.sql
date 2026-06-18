@@ -161,3 +161,68 @@ create policy "rsvps_insert_own" on public.rsvps
 grant execute on function public.auto_approve_events() to anon, authenticated;
 grant execute on function public.rsvp_event(uuid) to authenticated;
 grant execute on function public.set_event_summary(uuid, text) to anon, authenticated, service_role;
+
+-- ============================================================
+-- Paid promotion + visibility (added for the "promote to top" feature)
+-- Free posts are private to their author; paying makes them public + promoted.
+-- ============================================================
+alter table public.events add column if not exists is_public boolean not null default false;
+alter table public.events add column if not exists promoted boolean not null default false;
+alter table public.events add column if not exists promoted_amount numeric not null default 0;
+alter table public.events add column if not exists promoted_at timestamptz;
+
+create index if not exists events_public_idx on public.events (is_public);
+create index if not exists events_promoted_idx on public.events (promoted, promoted_amount);
+
+-- Per-user gate: 3 failed promotion screenings then locked.
+create table if not exists public.promo_gate (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  fail_count integer not null default 0,
+  locked     boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+alter table public.promo_gate enable row level security;
+
+drop policy if exists "promo_gate_read_own" on public.promo_gate;
+create policy "promo_gate_read_own" on public.promo_gate
+  for select to authenticated using (user_id = auth.uid());
+
+-- Record a failed screening; lock after 3. Returns the updated row.
+create or replace function public.promo_register_fail()
+returns public.promo_gate
+language plpgsql security definer as $$
+declare r public.promo_gate;
+begin
+  insert into public.promo_gate (user_id, fail_count, locked)
+  values (auth.uid(), 1, false)
+  on conflict (user_id) do update
+    set fail_count = public.promo_gate.fail_count + 1,
+        updated_at = now()
+  returning * into r;
+  if r.fail_count >= 3 then
+    update public.promo_gate set locked = true where user_id = auth.uid() returning * into r;
+  end if;
+  return r;
+end; $$;
+
+grant execute on function public.promo_register_fail() to authenticated;
+
+-- Visibility: replace the read policy so public events show to everyone,
+-- and authors still see their own private posts.
+drop policy if exists "events_read_approved" on public.events;
+create policy "events_read_public_or_own" on public.events
+  for select using (
+    is_public = true
+    or created_by = auth.uid()
+  );
+
+-- Authenticated users insert their own events; they CANNOT self-publish/promote
+-- (is_public/promoted are flipped only server-side after payment).
+drop policy if exists "events_insert_auth" on public.events;
+create policy "events_insert_own_private" on public.events
+  for insert to authenticated
+  with check (
+    created_by = auth.uid()
+    and is_public = false
+    and promoted = false
+  );
