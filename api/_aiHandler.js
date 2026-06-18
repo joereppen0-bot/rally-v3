@@ -60,15 +60,19 @@ export async function handleAI(payload, apiKey) {
 
   if (type === 'screen') {
     const prompt =
-      `You are screening a protest submission before it is shown on a public map. ` +
-      `Judge ONLY whether the wording is APPROPRIATE for a general audience. ` +
-      `Reject ONLY if it contains hate speech or slurs, harassment or targeting of a protected group, ` +
+      `You are a content moderator for a public protest-listing app. ` +
+      `Decide whether this submission's WORDING is safe to display to a general audience.\n` +
+      `Set "appropriate" to false ONLY if the text clearly contains one of these: ` +
+      `hate speech or slurs, harassment or targeting of a protected group, ` +
       `incitement to violence, sexual content, or obvious spam/gibberish. ` +
-      `Do NOT judge whether the protest is real, and do NOT judge the cause or your agreement with it — ` +
-      `peaceful protests on any topic or viewpoint are allowed.\n\n` +
+      `In every other case set "appropriate" to true.\n` +
+      `Peaceful protests on ANY topic, cause, or viewpoint are allowed. ` +
+      `Do NOT consider whether the event is real, notable, or whether you agree with it. ` +
+      `When in doubt, set "appropriate" to true.\n` +
+      `Meaning: "appropriate":true = SAFE to show; "appropriate":false = must be BLOCKED.\n\n` +
       `Name: ${event.name}\nDescription: ${event.description || 'n/a'}\n\n` +
-      `Respond with ONLY JSON (no markdown): ` +
-      `{"appropriate":true|false,"reason":"<one short sentence>"}.`
+      `Respond with ONLY JSON (no markdown), e.g. {"appropriate": true, "reason": "no prohibited content"}: ` +
+      `{"appropriate": <true or false>, "reason": "<one short sentence>"}.`
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: headers(apiKey),
