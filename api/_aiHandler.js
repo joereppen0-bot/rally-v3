@@ -59,34 +59,31 @@ export async function handleAI(payload, apiKey) {
   }
 
   if (type === 'screen') {
-    const when = event.date ? new Date(event.date).toDateString() : 'an upcoming date'
     const prompt =
-      `You are screening a protest submission before it is paid-promoted on a public map. ` +
-      `Do two things using web search:\n` +
-      `1) Determine whether this protest/demonstration is REAL and publicly announced.\n` +
-      `2) Judge whether the content is APPROPRIATE for a general-audience public listing ` +
-      `(reject if it incites violence, harasses, targets a protected group, is hateful, sexual, ` +
-      `spam/gibberish, or promotes illegal acts).\n\n` +
-      `Name: ${event.name}\nOrganiser: ${event.organiser_name || 'unknown'}\n` +
-      `Location: ${event.address || 'unknown'}\nDate: ${when}\nDescription: ${event.description || 'n/a'}\n\n` +
+      `You are screening a protest submission before it is shown on a public map. ` +
+      `Judge ONLY whether the wording is APPROPRIATE for a general audience. ` +
+      `Reject ONLY if it contains hate speech or slurs, harassment or targeting of a protected group, ` +
+      `incitement to violence, sexual content, or obvious spam/gibberish. ` +
+      `Do NOT judge whether the protest is real, and do NOT judge the cause or your agreement with it — ` +
+      `peaceful protests on any topic or viewpoint are allowed.\n\n` +
+      `Name: ${event.name}\nDescription: ${event.description || 'n/a'}\n\n` +
       `Respond with ONLY JSON (no markdown): ` +
-      `{"verdict":"verified|unverified|uncertain","appropriate":true|false,"reason":"<one short sentence>","sources":["<url>"]}.`
+      `{"appropriate":true|false,"reason":"<one short sentence>"}.`
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: headers(apiKey),
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1024,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
+        max_tokens: 512,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
-    if (!res.ok) return { verdict: 'uncertain', appropriate: true, reason: 'Screening service error.', sources: [] }
+    if (!res.ok) return { appropriate: true, reason: 'Screening service error.' }
     const data = await res.json()
     const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n')
     const m = text.match(/\{[\s\S]*\}/)
     if (m) { try { return JSON.parse(m[0]) } catch { /* fallthrough */ } }
-    return { verdict: 'uncertain', appropriate: true, reason: 'Could not parse screening result.', sources: [] }
+    return { appropriate: true, reason: 'Could not parse screening result.' }
   }
 
   return { error: 'bad_type' }

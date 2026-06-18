@@ -83,11 +83,11 @@ export default function SubmitView({ onRequireAuth, onCreate, promoteDemo, onSho
       setStage('screening')
       const s = await screenEvent(evt)
       setStage('')
-      const passed = s._demo ? true : (s.appropriate === true && s.verdict === 'verified')
+      const passed = s._demo ? true : (s.appropriate !== false)
       if (!passed) {
         const g = await recordFail()
         setScreenFail({
-          reason: s.reason || (s.appropriate === false ? 'Content was flagged as inappropriate.' : 'Could not confirm this protest is real.'),
+          reason: s.reason || 'Content was flagged as inappropriate (hate speech, slurs, harassment, violence, sexual content, or spam).',
           triesLeft: g.triesLeft, locked: g.locked,
         })
         return
