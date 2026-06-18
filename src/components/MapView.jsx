@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MAP_STYLE } from '../lib/geo'
 import { categoryColor } from '../lib/categories'
 import { LocateIcon } from './Icons'
@@ -11,6 +11,7 @@ export default function MapView({ events, center, focus, onSelect }) {
   const userMarkerRef = useRef(null)
   const eventsRef = useRef(events)
   eventsRef.current = events
+  const [mapError, setMapError] = useState(false)
 
   const toGeoJSON = (evts) => ({
     type: 'FeatureCollection',
@@ -42,14 +43,23 @@ export default function MapView({ events, center, focus, onSelect }) {
   useEffect(() => {
     const maplibregl = getMapLib()
     if (!maplibregl || mapRef.current || !containerRef.current) return
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: [center.lng, center.lat],
-      zoom: center.isDefault ? 1.6 : 11,
-      attributionControl: { compact: true },
-    })
+    let map
+    try {
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style: MAP_STYLE,
+        center: [center.lng, center.lat],
+        zoom: center.isDefault ? 1.6 : 11,
+        attributionControl: { compact: true },
+      })
+    } catch (err) {
+      // e.g. WebGL unavailable/blocked on this device — don't crash the app.
+      console.error('[Rally] Map failed to initialise:', err)
+      setMapError(true)
+      return
+    }
     mapRef.current = map
+    map.on('error', (e) => console.error('[Rally] Map runtime error:', e?.error || e))
 
     map.on('load', () => {
       map.addSource('events', { type: 'geojson', data: toGeoJSON(eventsRef.current) })
@@ -120,6 +130,17 @@ export default function MapView({ events, center, focus, onSelect }) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-ink-900 px-8 text-center">
         <p className="text-sm text-zinc-400">Loading map engine… check your connection and refresh.</p>
+      </div>
+    )
+  }
+
+  if (mapError) {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-900 px-8 text-center">
+        <p className="text-sm text-zinc-300">The map couldn't load on this device.</p>
+        <p className="mt-2 text-xs text-zinc-500">
+          This usually means graphics (WebGL) is disabled or unsupported here. You can still browse all protests in the List tab.
+        </p>
       </div>
     )
   }
